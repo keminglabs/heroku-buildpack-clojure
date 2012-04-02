@@ -75,3 +75,63 @@ rm -rf $CACHE_STORE_DIR
 mkdir -p $(dirname $CACHE_STORE_DIR)
 cp -r $CACHE_TARGET_DIR $CACHE_STORE_DIR
 rm -rf $CACHE_TARGET_DIR
+
+
+
+
+
+
+
+
+
+
+
+#Get some Jruby going on. Taken from
+#https://github.com/carlhoerberg/heroku-buildpack-jruby/
+
+
+BUILD_DIR=$1
+CACHE_DIR=$2
+
+function indent() {
+  c='s/^/ /'
+  case $(uname) in
+    Darwin) sed -l "$c";;
+    *) sed -u "$c";;
+  esac
+}
+
+VERSION="1.6.7"
+JRUBY_OPTS="--1.9"
+if [ ! -d "$CACHE_DIR/jruby-$VERSION" ]; then
+echo "-----> Downloading JRuby"
+  mkdir -p $CACHE_DIR
+  JRUBY_TAR=http://jruby.org.s3.amazonaws.com/downloads/$VERSION/jruby-bin-$VERSION.tar.gz
+  curl $JRUBY_TAR -s -o - | tar xzf - -C $CACHE_DIR/
+
+  echo "-----> Installing Bundler"
+  PATH=$CACHE_DIR/jruby-$VERSION/bin:$PATH
+  jgem install bundler | indent
+fi
+
+echo "-----> Vendoring JRuby into slug"
+cp -r $CACHE_DIR/jruby-$VERSION $BUILD_DIR/jruby
+
+echo "-----> Installing dependencies with Bundler"
+cd $BUILD_DIR
+PATH=$BUILD_DIR/jruby/bin:$PATH
+BUNDLE_CACHE=$CACHE_DIR/vendor/bundle
+BUNDLE_DIR=$BUILD_DIR/vendor/bundle
+
+if [ -d $BUNDLE_CACHE ]; then
+mkdir -p vendor
+  cp -r $BUNDLE_CACHE vendor/
+fi
+
+jruby --1.9 -S bundle install --without development:test --binstubs --deployment | indent
+
+rm -rf $BUNDLE_CACHE
+mkdir -p $CACHE_DIR/vendor
+cp -r $BUNDLE_DIR $CACHE_DIR/vendor
+
+echo "Dependencies installed" | indent
