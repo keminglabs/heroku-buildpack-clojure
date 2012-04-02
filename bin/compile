@@ -128,6 +128,8 @@ mkdir -p vendor
   cp -r $BUNDLE_CACHE vendor/
 fi
 
+echo "gem: --no-rdoc --no-ri" > .gemrc
+
 jruby --1.9 -S bundle install --without development:test --binstubs --deployment | indent
 
 rm -rf $BUNDLE_CACHE
